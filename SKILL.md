@@ -10,7 +10,7 @@ description: >
   operar, revisar o gestionar leads, ventas o comunicación con clientes desde Claude.
   Funciona para cualquier subcuenta: clientes con una sola cuenta, agencias con varias.
 version: "1.0.0"
-github: "https://github.com/dinmedia/plataforma-din-skill"
+github: "https://github.com/dinmedia-mx/plataforma-din-skill"
 ---
 
 # Plataforma DIN — Skill Unificado
@@ -44,7 +44,7 @@ Pregunta si el usuario trabaja con una o varias subcuentas.
 Este skill se actualiza desde GitHub. Para verificar si tienes la versión más reciente:
 
 ```
-Consulta: https://raw.githubusercontent.com/dinmedia/plataforma-din-skill/main/SKILL.md
+Consulta: https://raw.githubusercontent.com/dinmedia-mx/plataforma-din-skill/main/SKILL.md
 Compara el campo `version:` del encabezado con el de tu copia local.
 Si es diferente, avísale al usuario que hay una versión más nueva disponible.
 ```
@@ -353,7 +353,7 @@ Cuando encuentres algo nuevo sobre el comportamiento de la plataforma (un endpoi
 
 **Cómo reportar:**
 1. Documenta el hallazgo con: endpoint, parámetros usados, respuesta recibida, comportamiento esperado vs real
-2. Sugiere al usuario crear un issue en: `https://github.com/dinmedia/plataforma-din-skill/issues`
+2. Sugiere al usuario crear un issue en: `https://github.com/dinmedia-mx/plataforma-din-skill/issues`
 3. Usa este formato:
 
 ```
@@ -376,5 +376,5 @@ Cuerpo:
 ---
 
 *Skill v1.0.0 — Plataforma DIN by DIN Media*
-*GitHub: https://github.com/dinmedia/plataforma-din-skill*
+*GitHub: https://github.com/dinmedia-mx/plataforma-din-skill*
 *Comunidad: basado en hallazgos de mastanley13/GoHighLevel-MCP, tenfoldmarc/ghl-mcp, y GHL Official MCP*

@@ -64,4 +64,4 @@ Este skill se nutre de hallazgos propios y de la comunidad:
 
 ---
 
-Hecho por [DIN Media](https://dinmedia.mx)
+Hecho por [DIN Media](https://dinmedia.mx) · [@dinmedia-mx](https://github.com/dinmedia-mx)
