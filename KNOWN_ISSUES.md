@@ -1,6 +1,6 @@
 # Known Issues — API Behaviors
 
-Registro de comportamientos documentados de la API de GHL/Plataforma DIN.
+Registro de comportamientos documentados de la API de la Plataforma DIN.
 Actualizado por Claude cuando encuentra algo nuevo. Contribuye abriendo un issue.
 
 ---

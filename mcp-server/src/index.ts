@@ -7,24 +7,24 @@ import { z } from "zod";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const GHL_TOKEN = process.env.GHL_PRIVATE_TOKEN;
-const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID;
+const DIN_TOKEN = process.env.DIN_API_TOKEN;
+const DIN_LOCATION_ID = process.env.DIN_LOCATION_ID;
 const API_BASE = "https://services.leadconnectorhq.com";
 const API_VERSION = "2021-07-28";
 const CHARACTER_LIMIT = 25000;
 
-if (!GHL_TOKEN) {
-  console.error("ERROR: GHL_PRIVATE_TOKEN environment variable is required");
+if (!DIN_TOKEN) {
+  console.error("ERROR: DIN_API_TOKEN environment variable is required");
   process.exit(1);
 }
 
 // ─── HTTP Client ──────────────────────────────────────────────────────────────
 
-const ghlClient = axios.create({
+const dinClient = axios.create({
   baseURL: API_BASE,
   timeout: 30000,
   headers: {
-    Authorization: `Bearer ${GHL_TOKEN}`,
+    Authorization: `Bearer ${DIN_TOKEN}`,
     Version: API_VERSION,
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -32,19 +32,19 @@ const ghlClient = axios.create({
 });
 
 async function apiGet<T>(path: string, params?: Record<string, unknown>): Promise<T> {
-  const res = await ghlClient.get<T>(path, { params });
+  const res = await dinClient.get<T>(path, { params });
   return res.data;
 }
 async function apiPost<T>(path: string, data: unknown): Promise<T> {
-  const res = await ghlClient.post<T>(path, data);
+  const res = await dinClient.post<T>(path, data);
   return res.data;
 }
 async function apiPut<T>(path: string, data: unknown): Promise<T> {
-  const res = await ghlClient.put<T>(path, data);
+  const res = await dinClient.put<T>(path, data);
   return res.data;
 }
 async function apiDelete<T>(path: string, params?: Record<string, unknown>): Promise<T> {
-  const res = await ghlClient.delete<T>(path, { params });
+  const res = await dinClient.delete<T>(path, { params });
   return res.data;
 }
 
@@ -57,7 +57,7 @@ function handleError(error: unknown): string {
     const msg = Array.isArray(detail) ? detail.join(", ") : String(detail);
     switch (status) {
       case 400: return `Error 400 - Bad request: ${msg}`;
-      case 401: return "Error 401 - Token inválido o expirado. Verifica GHL_PRIVATE_TOKEN.";
+      case 401: return "Error 401 - Token inválido o expirado. Verifica DIN_API_TOKEN.";
       case 403: return "Error 403 - Sin permisos para este recurso. Revisa los scopes del token.";
       case 404: return `Error 404 - Recurso no encontrado. ${msg}`;
       case 422: return `Error 422 - Datos inválidos: ${msg}`;
@@ -74,8 +74,8 @@ function truncate(text: string): string {
 }
 
 function loc(): string {
-  if (!GHL_LOCATION_ID) throw new Error("GHL_LOCATION_ID no configurado. Agrega GHL_LOCATION_ID al archivo .env");
-  return GHL_LOCATION_ID;
+  if (!DIN_LOCATION_ID) throw new Error("DIN_LOCATION_ID no configurado. Agrega DIN_LOCATION_ID al archivo .env");
+  return DIN_LOCATION_ID;
 }
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
@@ -85,13 +85,13 @@ const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, idempotentHint
 
 // ─── Server ───────────────────────────────────────────────────────────────────
 
-const server = new McpServer({ name: "plataforma-din-mcp", version: "1.0.0" });
+const server = new McpServer({ name: "plataforma-din", version: "1.0.0" });
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUBCUENTA / LOCATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_get_location", {
+server.registerTool("din_get_location", {
   title: "Info de la subcuenta",
   description: "Información general de la subcuenta activa: nombre, email, timezone, dirección, configuración.",
   inputSchema: z.object({}).strict(),
@@ -103,7 +103,7 @@ server.registerTool("ghl_get_location", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_custom_fields", {
+server.registerTool("din_get_custom_fields", {
   title: "Ver campos personalizados de contacto",
   description: "Lista los custom fields de la subcuenta para contactos, oportunidades o tareas. Necesarios para saber los IDs antes de actualizar registros con valores personalizados.",
   inputSchema: z.object({
@@ -117,7 +117,7 @@ server.registerTool("ghl_get_custom_fields", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_custom_field", {
+server.registerTool("din_create_custom_field", {
   title: "Crear campo personalizado",
   description: "Crea un nuevo campo personalizado para contactos, oportunidades o tareas.",
   inputSchema: z.object({
@@ -136,7 +136,7 @@ server.registerTool("ghl_create_custom_field", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_update_custom_field", {
+server.registerTool("din_update_custom_field", {
   title: "Actualizar campo personalizado",
   description: "Actualiza el nombre, placeholder u opciones de un campo personalizado existente.",
   inputSchema: z.object({
@@ -154,7 +154,7 @@ server.registerTool("ghl_update_custom_field", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_delete_custom_field", {
+server.registerTool("din_delete_custom_field", {
   title: "Eliminar campo personalizado",
   description: "⚠️ DESTRUCTIVO — Elimina permanentemente un campo personalizado y todos sus valores en contactos.",
   inputSchema: z.object({
@@ -168,7 +168,7 @@ server.registerTool("ghl_delete_custom_field", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_custom_values", {
+server.registerTool("din_get_custom_values", {
   title: "Ver variables del sistema",
   description: "Lista los custom values (variables/snippets de texto) configurados en la subcuenta: URLs de booking, nombres de promociones, etc.",
   inputSchema: z.object({}).strict(),
@@ -180,7 +180,7 @@ server.registerTool("ghl_get_custom_values", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_custom_value", {
+server.registerTool("din_create_custom_value", {
   title: "Crear variable del sistema",
   description: "Crea un nuevo custom value (snippet de texto reutilizable) en la subcuenta.",
   inputSchema: z.object({
@@ -195,7 +195,7 @@ server.registerTool("ghl_create_custom_value", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_update_custom_value", {
+server.registerTool("din_update_custom_value", {
   title: "Actualizar variable del sistema",
   description: "Actualiza el nombre o valor de un custom value existente.",
   inputSchema: z.object({
@@ -211,7 +211,7 @@ server.registerTool("ghl_update_custom_value", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_delete_custom_value", {
+server.registerTool("din_delete_custom_value", {
   title: "Eliminar variable del sistema",
   description: "⚠️ Elimina un custom value de la subcuenta.",
   inputSchema: z.object({ customValueId: z.string() }).strict(),
@@ -223,7 +223,7 @@ server.registerTool("ghl_delete_custom_value", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_tags", {
+server.registerTool("din_get_tags", {
   title: "Ver tags disponibles",
   description: "Lista todos los tags configurados en la subcuenta (alineados con etapas del pipeline y estados de leads).",
   inputSchema: z.object({}).strict(),
@@ -235,7 +235,7 @@ server.registerTool("ghl_get_tags", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_tag", {
+server.registerTool("din_create_tag", {
   title: "Crear tag",
   description: "Crea un nuevo tag en la subcuenta.",
   inputSchema: z.object({ name: z.string().min(1) }).strict(),
@@ -247,7 +247,7 @@ server.registerTool("ghl_create_tag", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_update_tag", {
+server.registerTool("din_update_tag", {
   title: "Actualizar tag",
   description: "Renombra un tag existente.",
   inputSchema: z.object({ tagId: z.string(), name: z.string().min(1) }).strict(),
@@ -259,7 +259,7 @@ server.registerTool("ghl_update_tag", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_delete_tag", {
+server.registerTool("din_delete_tag", {
   title: "Eliminar tag",
   description: "⚠️ Elimina un tag de la subcuenta. Se borrará de todos los contactos que lo tengan.",
   inputSchema: z.object({ tagId: z.string() }).strict(),
@@ -271,7 +271,7 @@ server.registerTool("ghl_delete_tag", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_location_templates", {
+server.registerTool("din_get_location_templates", {
   title: "Ver plantillas de mensajes",
   description: "Lista plantillas de WhatsApp, SMS u otros canales. Crítico: después de 24h sin respuesta del lead, solo se pueden enviar plantillas aprobadas por Meta — no mensajes libres.",
   inputSchema: z.object({
@@ -291,7 +291,7 @@ server.registerTool("ghl_get_location_templates", {
 // CONTACTOS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_search_contacts", {
+server.registerTool("din_search_contacts", {
   title: "Buscar contactos",
   description: "Busca contactos por nombre, email o teléfono. Usa paginación con startAfter (ID del último contacto).",
   inputSchema: z.object({
@@ -307,7 +307,7 @@ server.registerTool("ghl_search_contacts", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_contact", {
+server.registerTool("din_get_contact", {
   title: "Obtener contacto por ID",
   description: "Detalle completo de un contacto: datos personales, tags, custom fields, source, agente asignado.",
   inputSchema: z.object({ contactId: z.string() }).strict(),
@@ -319,9 +319,9 @@ server.registerTool("ghl_get_contact", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_contact", {
+server.registerTool("din_create_contact", {
   title: "Crear contacto",
-  description: "Crea un contacto nuevo. ⚠️ Buscar primero con ghl_search_contacts para evitar duplicados.",
+  description: "Crea un contacto nuevo. ⚠️ Buscar primero con din_search_contacts para evitar duplicados.",
   inputSchema: z.object({
     firstName: z.string().optional(),
     lastName: z.string().optional(),
@@ -341,7 +341,7 @@ server.registerTool("ghl_create_contact", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_update_contact", {
+server.registerTool("din_update_contact", {
   title: "Actualizar contacto",
   description: "Actualiza campos de un contacto. Solo modifica los campos incluidos en la llamada.",
   inputSchema: z.object({
@@ -363,7 +363,7 @@ server.registerTool("ghl_update_contact", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_delete_contact", {
+server.registerTool("din_delete_contact", {
   title: "Eliminar contacto",
   description: "⚠️ DESTRUCTIVO — Elimina permanentemente un contacto y todos sus datos asociados.",
   inputSchema: z.object({ contactId: z.string() }).strict(),
@@ -375,12 +375,12 @@ server.registerTool("ghl_delete_contact", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_add_contact_tags", {
+server.registerTool("din_add_contact_tags", {
   title: "Agregar tags a contacto",
   description: "Agrega uno o varios tags a un contacto sin eliminar los existentes.",
   inputSchema: z.object({
     contactId: z.string(),
-    tags: z.array(z.string()).min(1).describe("Tags a agregar (ver ghl_get_tags para los disponibles)"),
+    tags: z.array(z.string()).min(1).describe("Tags a agregar (ver din_get_tags para los disponibles)"),
   }).strict(),
   annotations: WRITE_SAFE,
 }, async ({ contactId, tags }) => {
@@ -390,7 +390,7 @@ server.registerTool("ghl_add_contact_tags", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_remove_contact_tags", {
+server.registerTool("din_remove_contact_tags", {
   title: "Quitar tags de contacto",
   description: "Elimina tags específicos de un contacto (no elimina otros tags que tenga).",
   inputSchema: z.object({
@@ -409,7 +409,7 @@ server.registerTool("ghl_remove_contact_tags", {
 // NOTAS Y TAREAS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_get_contact_notes", {
+server.registerTool("din_get_contact_notes", {
   title: "Ver notas de un contacto",
   description: "Lista todas las notas de un contacto. Pueden incluir resúmenes de conversaciones generados por IA.",
   inputSchema: z.object({ contactId: z.string() }).strict(),
@@ -421,7 +421,7 @@ server.registerTool("ghl_get_contact_notes", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_note", {
+server.registerTool("din_create_note", {
   title: "Crear nota en contacto",
   description: "Agrega una nota a un contacto para registrar información importante o un resumen de interacción.",
   inputSchema: z.object({
@@ -436,7 +436,7 @@ server.registerTool("ghl_create_note", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_contact_tasks", {
+server.registerTool("din_get_contact_tasks", {
   title: "Ver tareas de un contacto",
   description: "Lista todas las tareas (pendientes y completadas) asociadas a un contacto.",
   inputSchema: z.object({ contactId: z.string() }).strict(),
@@ -448,9 +448,9 @@ server.registerTool("ghl_get_contact_tasks", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_task", {
+server.registerTool("din_create_task", {
   title: "Crear tarea en contacto",
-  description: "Crea una tarea asociada a un contacto. Usar ghl_get_users para obtener el userId del agente responsable.",
+  description: "Crea una tarea asociada a un contacto. Usar din_get_users para obtener el userId del agente responsable.",
   inputSchema: z.object({
     contactId: z.string(),
     title: z.string().min(1),
@@ -470,7 +470,7 @@ server.registerTool("ghl_create_task", {
 // PIPELINE / OPORTUNIDADES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_get_pipelines", {
+server.registerTool("din_get_pipelines", {
   title: "Ver pipelines",
   description: "Lista los pipelines y sus etapas. Incluye IDs necesarios para crear/mover oportunidades.",
   inputSchema: z.object({}).strict(),
@@ -482,7 +482,7 @@ server.registerTool("ghl_get_pipelines", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_search_opportunities", {
+server.registerTool("din_search_opportunities", {
   title: "Buscar oportunidades",
   description: "Busca oportunidades en el pipeline. ⚠️ Usa location_id (guión bajo, no camelCase). Filtro por contactId no soportado — usar query con nombre del contacto.",
   inputSchema: z.object({
@@ -502,7 +502,7 @@ server.registerTool("ghl_search_opportunities", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_opportunity", {
+server.registerTool("din_get_opportunity", {
   title: "Obtener oportunidad por ID",
   description: "Detalle completo de una oportunidad: nombre, etapa, valor monetario, contacto, agente, status.",
   inputSchema: z.object({ opportunityId: z.string() }).strict(),
@@ -514,9 +514,9 @@ server.registerTool("ghl_get_opportunity", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_opportunity", {
+server.registerTool("din_create_opportunity", {
   title: "Crear oportunidad",
-  description: "Crea una oportunidad en el pipeline. ⚠️ Usar ghl_get_pipelines primero para IDs válidos. Puede disparar workflows automáticos si están configurados.",
+  description: "Crea una oportunidad en el pipeline. ⚠️ Usar din_get_pipelines primero para IDs válidos. Puede disparar workflows automáticos si están configurados.",
   inputSchema: z.object({
     pipelineId: z.string(),
     pipelineStageId: z.string(),
@@ -534,9 +534,9 @@ server.registerTool("ghl_create_opportunity", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_update_opportunity", {
+server.registerTool("din_update_opportunity", {
   title: "Actualizar oportunidad",
-  description: "Mueve etapa o actualiza status de una oportunidad. ⚠️ Cambiar etapa puede disparar workflows automáticos activos — verificar con ghl_get_workflows antes.",
+  description: "Mueve etapa o actualiza status de una oportunidad. ⚠️ Cambiar etapa puede disparar workflows automáticos activos — verificar con din_get_workflows antes.",
   inputSchema: z.object({
     opportunityId: z.string(),
     pipelineStageId: z.string().optional().describe("Nueva etapa del pipeline"),
@@ -553,7 +553,7 @@ server.registerTool("ghl_update_opportunity", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_delete_opportunity", {
+server.registerTool("din_delete_opportunity", {
   title: "Eliminar oportunidad",
   description: "⚠️ DESTRUCTIVO — Elimina permanentemente una oportunidad del pipeline.",
   inputSchema: z.object({ opportunityId: z.string() }).strict(),
@@ -569,7 +569,7 @@ server.registerTool("ghl_delete_opportunity", {
 // CONVERSACIONES Y MENSAJES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_search_conversations", {
+server.registerTool("din_search_conversations", {
   title: "Buscar conversaciones",
   description: "Busca conversaciones por contacto, canal o consulta. Canales posibles: WhatsApp, SMS, Email, Instagram.",
   inputSchema: z.object({
@@ -587,7 +587,7 @@ server.registerTool("ghl_search_conversations", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_conversation", {
+server.registerTool("din_get_conversation", {
   title: "Obtener conversación por ID",
   description: "Detalle de una conversación: canal, último mensaje, contacto, agente asignado, fecha.",
   inputSchema: z.object({ conversationId: z.string() }).strict(),
@@ -599,7 +599,7 @@ server.registerTool("ghl_get_conversation", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_messages", {
+server.registerTool("din_get_messages", {
   title: "Ver mensajes de una conversación",
   description: "Lista los mensajes de una conversación con paginación. Incluye mensajes de IA si el bot está activo.",
   inputSchema: z.object({
@@ -615,9 +615,9 @@ server.registerTool("ghl_get_messages", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_send_message", {
+server.registerTool("din_send_message", {
   title: "Enviar mensaje",
-  description: "⚠️ ACCIÓN REAL — el mensaje llega al contacto. Confirmar contenido y canal antes de enviar. IMPORTANTE: si el contacto lleva más de 24h sin responder, usar ghl_send_template_message en su lugar.",
+  description: "⚠️ ACCIÓN REAL — el mensaje llega al contacto. Confirmar contenido y canal antes de enviar. IMPORTANTE: si el contacto lleva más de 24h sin responder, usar din_send_template_message en su lugar.",
   inputSchema: z.object({
     conversationId: z.string(),
     type: z.enum(["SMS", "Email", "WhatsApp", "IG", "FB", "GMB", "Custom"]),
@@ -633,13 +633,13 @@ server.registerTool("ghl_send_message", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_send_template_message", {
+server.registerTool("din_send_template_message", {
   title: "Enviar mensaje de plantilla (post-24h)",
-  description: "⚠️ ACCIÓN REAL — Envía una plantilla aprobada por Meta. Obligatorio cuando el lead lleva más de 24h sin responder por WhatsApp. Usar ghl_get_location_templates para ver las plantillas disponibles.",
+  description: "⚠️ ACCIÓN REAL — Envía una plantilla aprobada por Meta. Obligatorio cuando el lead lleva más de 24h sin responder por WhatsApp. Usar din_get_location_templates para ver las plantillas disponibles.",
   inputSchema: z.object({
     conversationId: z.string(),
     contactId: z.string(),
-    templateId: z.string().describe("ID de la plantilla aprobada (ver ghl_get_location_templates)"),
+    templateId: z.string().describe("ID de la plantilla aprobada (ver din_get_location_templates)"),
     name: z.string().describe("Nombre de la plantilla"),
     variables: z.array(z.string()).optional().describe("Valores para los {{1}}, {{2}}... de la plantilla"),
   }).strict(),
@@ -662,7 +662,7 @@ server.registerTool("ghl_send_template_message", {
 // CALENDARIOS Y CITAS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_get_calendars", {
+server.registerTool("din_get_calendars", {
   title: "Ver calendarios",
   description: "Lista todos los calendarios de la subcuenta: personales, de servicio y de eventos.",
   inputSchema: z.object({}).strict(),
@@ -674,7 +674,7 @@ server.registerTool("ghl_get_calendars", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_calendar_events", {
+server.registerTool("din_get_calendar_events", {
   title: "Ver citas por rango de fechas",
   description: "Lista citas en un rango de fechas. Timestamps en milisegundos Unix.",
   inputSchema: z.object({
@@ -691,7 +691,7 @@ server.registerTool("ghl_get_calendar_events", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_appointments", {
+server.registerTool("din_get_appointments", {
   title: "Ver citas de un contacto",
   description: "Lista el historial de citas de un contacto específico.",
   inputSchema: z.object({ contactId: z.string() }).strict(),
@@ -707,7 +707,7 @@ server.registerTool("ghl_get_appointments", {
 // USUARIOS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_get_users", {
+server.registerTool("din_get_users", {
   title: "Ver usuarios / agentes",
   description: "Lista todos los agentes/usuarios de la subcuenta con sus IDs. Útil para asignar leads, tareas y filtrar conversaciones.",
   inputSchema: z.object({}).strict(),
@@ -723,7 +723,7 @@ server.registerTool("ghl_get_users", {
 // WORKFLOWS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_get_workflows", {
+server.registerTool("din_get_workflows", {
   title: "Ver workflows / automatizaciones",
   description: "Lista todos los workflows (publicados y borradores). Revisar antes de mover etapas en el pipeline para identificar flujos que se puedan disparar.",
   inputSchema: z.object({}).strict(),
@@ -739,7 +739,7 @@ server.registerTool("ghl_get_workflows", {
 // FORMULARIOS, FUNNELS, EMAIL TEMPLATES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_get_forms", {
+server.registerTool("din_get_forms", {
   title: "Ver formularios",
   description: "Lista los formularios de captación de leads de la subcuenta.",
   inputSchema: z.object({ limit: z.number().int().min(1).max(100).default(20) }).strict(),
@@ -751,11 +751,11 @@ server.registerTool("ghl_get_forms", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_form_submissions", {
+server.registerTool("din_get_form_submissions", {
   title: "Ver respuestas de formulario",
   description: "Lista las respuestas enviadas a un formulario específico.",
   inputSchema: z.object({
-    formId: z.string().describe("ID del formulario (ver ghl_get_forms)"),
+    formId: z.string().describe("ID del formulario (ver din_get_forms)"),
     limit: z.number().int().min(1).max(100).default(20),
     page: z.number().int().min(1).default(1),
   }).strict(),
@@ -767,7 +767,7 @@ server.registerTool("ghl_get_form_submissions", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_funnels", {
+server.registerTool("din_get_funnels", {
   title: "Ver funnels",
   description: "Lista los funnels de la subcuenta.",
   inputSchema: z.object({ limit: z.number().int().min(1).max(100).default(20) }).strict(),
@@ -779,7 +779,7 @@ server.registerTool("ghl_get_funnels", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_email_templates", {
+server.registerTool("din_get_email_templates", {
   title: "Ver plantillas de email (builder)",
   description: "Lista las plantillas de email creadas con el email builder de la plataforma.",
   inputSchema: z.object({}).strict(),
@@ -791,7 +791,7 @@ server.registerTool("ghl_get_email_templates", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_businesses", {
+server.registerTool("din_get_businesses", {
   title: "Ver empresas/negocios",
   description: "Lista las empresas/negocios registrados en la subcuenta.",
   inputSchema: z.object({ limit: z.number().int().min(1).max(100).default(20) }).strict(),
@@ -807,7 +807,7 @@ server.registerTool("ghl_get_businesses", {
 // FACTURAS / INVOICES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_list_invoices", {
+server.registerTool("din_list_invoices", {
   title: "Listar facturas",
   description: "Lista facturas de la subcuenta con filtros de estado, contacto y búsqueda.",
   inputSchema: z.object({
@@ -825,7 +825,7 @@ server.registerTool("ghl_list_invoices", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_invoice", {
+server.registerTool("din_get_invoice", {
   title: "Obtener factura por ID",
   description: "Detalle completo de una factura.",
   inputSchema: z.object({ invoiceId: z.string() }).strict(),
@@ -837,7 +837,7 @@ server.registerTool("ghl_get_invoice", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_invoice", {
+server.registerTool("din_create_invoice", {
   title: "Crear factura",
   description: "Crea una nueva factura para un contacto.",
   inputSchema: z.object({
@@ -862,7 +862,7 @@ server.registerTool("ghl_create_invoice", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_update_invoice", {
+server.registerTool("din_update_invoice", {
   title: "Actualizar factura",
   description: "Actualiza campos de una factura en estado draft.",
   inputSchema: z.object({
@@ -883,7 +883,7 @@ server.registerTool("ghl_update_invoice", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_send_invoice", {
+server.registerTool("din_send_invoice", {
   title: "Enviar factura",
   description: "⚠️ ACCIÓN REAL — Envía una factura al contacto por email.",
   inputSchema: z.object({
@@ -899,7 +899,7 @@ server.registerTool("ghl_send_invoice", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_void_invoice", {
+server.registerTool("din_void_invoice", {
   title: "Anular factura",
   description: "⚠️ Anula una factura (cambia su estado a void). No se puede deshacer.",
   inputSchema: z.object({ invoiceId: z.string() }).strict(),
@@ -911,7 +911,7 @@ server.registerTool("ghl_void_invoice", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_record_invoice_payment", {
+server.registerTool("din_record_invoice_payment", {
   title: "Registrar pago de factura",
   description: "Registra un pago manual recibido para una factura.",
   inputSchema: z.object({
@@ -932,7 +932,7 @@ server.registerTool("ghl_record_invoice_payment", {
 // ESTIMADOS / PRESUPUESTOS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_list_estimates", {
+server.registerTool("din_list_estimates", {
   title: "Listar estimados/presupuestos",
   description: "Lista los estimados de la subcuenta.",
   inputSchema: z.object({
@@ -948,7 +948,7 @@ server.registerTool("ghl_list_estimates", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_estimate", {
+server.registerTool("din_create_estimate", {
   title: "Crear estimado/presupuesto",
   description: "Crea un estimado o presupuesto para un contacto.",
   inputSchema: z.object({
@@ -969,7 +969,7 @@ server.registerTool("ghl_create_estimate", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_send_estimate", {
+server.registerTool("din_send_estimate", {
   title: "Enviar estimado",
   description: "⚠️ ACCIÓN REAL — Envía un estimado al contacto por email.",
   inputSchema: z.object({
@@ -985,7 +985,7 @@ server.registerTool("ghl_send_estimate", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_convert_estimate_to_invoice", {
+server.registerTool("din_convert_estimate_to_invoice", {
   title: "Convertir estimado en factura",
   description: "Convierte un estimado aceptado en una factura.",
   inputSchema: z.object({ estimateId: z.string() }).strict(),
@@ -1001,7 +1001,7 @@ server.registerTool("ghl_convert_estimate_to_invoice", {
 // PAGOS — ÓRDENES, TRANSACCIONES, SUSCRIPCIONES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_list_orders", {
+server.registerTool("din_list_orders", {
   title: "Listar órdenes de pago",
   description: "Lista órdenes de pago de la subcuenta con filtros.",
   inputSchema: z.object({
@@ -1018,7 +1018,7 @@ server.registerTool("ghl_list_orders", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_order", {
+server.registerTool("din_get_order", {
   title: "Obtener orden por ID",
   description: "Detalle completo de una orden de pago.",
   inputSchema: z.object({ orderId: z.string() }).strict(),
@@ -1030,7 +1030,7 @@ server.registerTool("ghl_get_order", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_list_transactions", {
+server.registerTool("din_list_transactions", {
   title: "Listar transacciones",
   description: "Lista el historial de transacciones de pagos de la subcuenta.",
   inputSchema: z.object({
@@ -1047,7 +1047,7 @@ server.registerTool("ghl_list_transactions", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_list_subscriptions", {
+server.registerTool("din_list_subscriptions", {
   title: "Listar suscripciones",
   description: "Lista las suscripciones activas o pasadas de la subcuenta.",
   inputSchema: z.object({
@@ -1064,7 +1064,7 @@ server.registerTool("ghl_list_subscriptions", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_list_coupons", {
+server.registerTool("din_list_coupons", {
   title: "Listar cupones de descuento",
   description: "Lista los cupones de descuento disponibles en la subcuenta.",
   inputSchema: z.object({
@@ -1081,7 +1081,7 @@ server.registerTool("ghl_list_coupons", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_coupon", {
+server.registerTool("din_create_coupon", {
   title: "Crear cupón de descuento",
   description: "Crea un nuevo cupón de descuento para productos o servicios.",
   inputSchema: z.object({
@@ -1105,7 +1105,7 @@ server.registerTool("ghl_create_coupon", {
 // OBJETOS PERSONALIZADOS (Custom Objects)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_get_object_schemas", {
+server.registerTool("din_get_object_schemas", {
   title: "Ver esquemas de objetos personalizados",
   description: "Lista todos los tipos de objetos personalizados configurados (ej: Propiedad, Visita, Contrato).",
   inputSchema: z.object({}).strict(),
@@ -1117,7 +1117,7 @@ server.registerTool("ghl_get_object_schemas", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_object_schema", {
+server.registerTool("din_get_object_schema", {
   title: "Ver esquema de un objeto personalizado",
   description: "Detalle de un tipo de objeto: sus campos, etiquetas y configuración.",
   inputSchema: z.object({ schemaKey: z.string().describe("Clave del esquema (ej: 'propiedad', 'visita')") }).strict(),
@@ -1129,11 +1129,11 @@ server.registerTool("ghl_get_object_schema", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_object_record", {
+server.registerTool("din_create_object_record", {
   title: "Crear registro de objeto personalizado",
   description: "Crea un nuevo registro de un tipo de objeto (ej: una propiedad, una visita).",
   inputSchema: z.object({
-    schemaKey: z.string().describe("Tipo de objeto (ver ghl_get_object_schemas)"),
+    schemaKey: z.string().describe("Tipo de objeto (ver din_get_object_schemas)"),
     properties: z.record(z.unknown()).describe("Campos del registro como objeto clave-valor"),
     owner: z.string().optional().describe("userId del propietario del registro"),
   }).strict(),
@@ -1145,7 +1145,7 @@ server.registerTool("ghl_create_object_record", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_object_record", {
+server.registerTool("din_get_object_record", {
   title: "Obtener registro de objeto personalizado",
   description: "Detalle de un registro específico de un objeto personalizado.",
   inputSchema: z.object({
@@ -1160,7 +1160,7 @@ server.registerTool("ghl_get_object_record", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_update_object_record", {
+server.registerTool("din_update_object_record", {
   title: "Actualizar registro de objeto personalizado",
   description: "Actualiza los campos de un registro existente.",
   inputSchema: z.object({
@@ -1176,7 +1176,7 @@ server.registerTool("ghl_update_object_record", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_search_object_records", {
+server.registerTool("din_search_object_records", {
   title: "Buscar registros de objeto personalizado",
   description: "Busca registros dentro de un tipo de objeto personalizado.",
   inputSchema: z.object({
@@ -1196,7 +1196,7 @@ server.registerTool("ghl_search_object_records", {
 // ASOCIACIONES (relaciones entre registros)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_get_associations", {
+server.registerTool("din_get_associations", {
   title: "Ver tipos de asociaciones",
   description: "Lista los tipos de relaciones configuradas entre objetos (ej: Contacto ↔ Propiedad).",
   inputSchema: z.object({
@@ -1211,7 +1211,7 @@ server.registerTool("ghl_get_associations", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_association", {
+server.registerTool("din_create_association", {
   title: "Crear tipo de asociación",
   description: "Define un nuevo tipo de relación entre dos tipos de objetos.",
   inputSchema: z.object({
@@ -1229,11 +1229,11 @@ server.registerTool("ghl_create_association", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_relation", {
+server.registerTool("din_create_relation", {
   title: "Crear relación entre registros",
   description: "Enlaza dos registros específicos usando un tipo de asociación definido (ej: ligar un contacto con una propiedad).",
   inputSchema: z.object({
-    associationId: z.string().describe("ID del tipo de asociación (ver ghl_get_associations)"),
+    associationId: z.string().describe("ID del tipo de asociación (ver din_get_associations)"),
     firstRecordId: z.string().describe("ID del primer registro"),
     secondRecordId: z.string().describe("ID del segundo registro"),
   }).strict(),
@@ -1245,7 +1245,7 @@ server.registerTool("ghl_create_relation", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_relations_by_record", {
+server.registerTool("din_get_relations_by_record", {
   title: "Ver relaciones de un registro",
   description: "Lista todas las relaciones de un registro específico (ej: todas las propiedades asociadas a un contacto).",
   inputSchema: z.object({
@@ -1262,7 +1262,7 @@ server.registerTool("ghl_get_relations_by_record", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_delete_relation", {
+server.registerTool("din_delete_relation", {
   title: "Eliminar relación entre registros",
   description: "⚠️ Elimina el vínculo entre dos registros (no elimina los registros, solo la relación).",
   inputSchema: z.object({ relationId: z.string() }).strict(),
@@ -1278,7 +1278,7 @@ server.registerTool("ghl_delete_relation", {
 // CONVERSACIONES — GESTIÓN ADICIONAL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_create_conversation", {
+server.registerTool("din_create_conversation", {
   title: "Crear conversación",
   description: "Crea una nueva conversación para un contacto. Útil para iniciar un canal de comunicación antes de enviar el primer mensaje.",
   inputSchema: z.object({ contactId: z.string() }).strict(),
@@ -1290,7 +1290,7 @@ server.registerTool("ghl_create_conversation", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_update_conversation", {
+server.registerTool("din_update_conversation", {
   title: "Actualizar conversación",
   description: "Marca una conversación como destacada o cambia su contador de no leídos.",
   inputSchema: z.object({
@@ -1310,7 +1310,7 @@ server.registerTool("ghl_update_conversation", {
 // REDES SOCIALES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_get_social_accounts", {
+server.registerTool("din_get_social_accounts", {
   title: "Ver cuentas de redes sociales conectadas",
   description: "Lista las cuentas de Facebook, Instagram, LinkedIn u otras redes conectadas a la subcuenta.",
   inputSchema: z.object({}).strict(),
@@ -1322,7 +1322,7 @@ server.registerTool("ghl_get_social_accounts", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_list_social_posts", {
+server.registerTool("din_list_social_posts", {
   title: "Listar publicaciones en redes sociales",
   description: "Lista publicaciones programadas o publicadas en redes sociales. Filtrar por fecha o tipo.",
   inputSchema: z.object({
@@ -1340,7 +1340,7 @@ server.registerTool("ghl_list_social_posts", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_social_post", {
+server.registerTool("din_get_social_post", {
   title: "Obtener publicación social por ID",
   description: "Detalle de una publicación de redes sociales específica.",
   inputSchema: z.object({ postId: z.string() }).strict(),
@@ -1352,11 +1352,11 @@ server.registerTool("ghl_get_social_post", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_social_post", {
+server.registerTool("din_create_social_post", {
   title: "Crear publicación en redes sociales",
   description: "⚠️ ACCIÓN REAL — Crea o programa una publicación en las redes conectadas. Ideal para publicar listados de propiedades en FB/IG.",
   inputSchema: z.object({
-    accountIds: z.array(z.string()).min(1).describe("IDs de las cuentas donde publicar (ver ghl_get_social_accounts)"),
+    accountIds: z.array(z.string()).min(1).describe("IDs de las cuentas donde publicar (ver din_get_social_accounts)"),
     summary: z.string().min(1).describe("Texto de la publicación"),
     media: z.array(z.object({
       url: z.string().describe("URL de la imagen o video"),
@@ -1374,7 +1374,7 @@ server.registerTool("ghl_create_social_post", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_update_social_post", {
+server.registerTool("din_update_social_post", {
   title: "Actualizar publicación social",
   description: "Edita el texto, fecha programada o estado de una publicación de redes sociales.",
   inputSchema: z.object({
@@ -1392,7 +1392,7 @@ server.registerTool("ghl_update_social_post", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_delete_social_post", {
+server.registerTool("din_delete_social_post", {
   title: "Eliminar publicación social",
   description: "⚠️ Elimina una publicación de redes sociales.",
   inputSchema: z.object({ postId: z.string() }).strict(),
@@ -1408,7 +1408,7 @@ server.registerTool("ghl_delete_social_post", {
 // BLOG
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_list_blogs", {
+server.registerTool("din_list_blogs", {
   title: "Listar blogs",
   description: "Lista los blogs configurados en la subcuenta. Útil para publicar artículos de propiedades, análisis de mercado o contenido inmobiliario.",
   inputSchema: z.object({
@@ -1424,7 +1424,7 @@ server.registerTool("ghl_list_blogs", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_list_blog_posts", {
+server.registerTool("din_list_blog_posts", {
   title: "Listar artículos de un blog",
   description: "Lista los artículos publicados o en borrador de un blog específico.",
   inputSchema: z.object({
@@ -1442,11 +1442,11 @@ server.registerTool("ghl_list_blog_posts", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_blog_post", {
+server.registerTool("din_create_blog_post", {
   title: "Crear artículo de blog",
   description: "⚠️ ACCIÓN REAL — Crea un artículo en el blog. Útil para publicar listados de propiedades, reportes de mercado o guías para compradores.",
   inputSchema: z.object({
-    blogId: z.string().describe("ID del blog (ver ghl_list_blogs)"),
+    blogId: z.string().describe("ID del blog (ver din_list_blogs)"),
     title: z.string().min(1),
     content: z.string().min(1).describe("Contenido HTML del artículo"),
     description: z.string().optional().describe("Resumen o meta descripción"),
@@ -1464,7 +1464,7 @@ server.registerTool("ghl_create_blog_post", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_update_blog_post", {
+server.registerTool("din_update_blog_post", {
   title: "Actualizar artículo de blog",
   description: "Edita el contenido, título o estado de un artículo de blog.",
   inputSchema: z.object({
@@ -1484,7 +1484,7 @@ server.registerTool("ghl_update_blog_post", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_blog_authors", {
+server.registerTool("din_get_blog_authors", {
   title: "Ver autores del blog",
   description: "Lista los autores disponibles para asignar a artículos del blog.",
   inputSchema: z.object({ blogId: z.string() }).strict(),
@@ -1500,7 +1500,7 @@ server.registerTool("ghl_get_blog_authors", {
 // ENCUESTAS / SURVEYS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_list_surveys", {
+server.registerTool("din_list_surveys", {
   title: "Listar encuestas",
   description: "Lista las encuestas configuradas. Útil para calificación de leads post-visita o feedback de clientes.",
   inputSchema: z.object({
@@ -1515,11 +1515,11 @@ server.registerTool("ghl_list_surveys", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_survey_submissions", {
+server.registerTool("din_get_survey_submissions", {
   title: "Ver respuestas de encuesta",
   description: "Lista las respuestas enviadas a una encuesta específica con filtros de fecha.",
   inputSchema: z.object({
-    surveyId: z.string().optional().describe("ID de la encuesta (ver ghl_list_surveys)"),
+    surveyId: z.string().optional().describe("ID de la encuesta (ver din_list_surveys)"),
     page: z.number().int().default(1),
     limit: z.number().int().default(20),
     q: z.string().optional().describe("Búsqueda por nombre o email"),
@@ -1538,7 +1538,7 @@ server.registerTool("ghl_get_survey_submissions", {
 // BIBLIOTECA DE MEDIOS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_list_media", {
+server.registerTool("din_list_media", {
   title: "Listar archivos de medios",
   description: "Lista imágenes, videos y documentos en la biblioteca de medios. Útil para gestionar fotos de propiedades, planos y materiales de marketing.",
   inputSchema: z.object({
@@ -1556,7 +1556,7 @@ server.registerTool("ghl_list_media", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_upload_media", {
+server.registerTool("din_upload_media", {
   title: "Subir archivo a biblioteca de medios",
   description: "Sube un archivo a la biblioteca de medios usando su URL pública. Ideal para agregar fotos de propiedades desde URLs externas.",
   inputSchema: z.object({
@@ -1571,7 +1571,7 @@ server.registerTool("ghl_upload_media", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_delete_media", {
+server.registerTool("din_delete_media", {
   title: "Eliminar archivo de medios",
   description: "⚠️ Elimina permanentemente un archivo de la biblioteca de medios.",
   inputSchema: z.object({ mediaId: z.string() }).strict(),
@@ -1587,7 +1587,7 @@ server.registerTool("ghl_delete_media", {
 // EMAIL MARKETING / CAMPAÑAS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_list_email_campaigns", {
+server.registerTool("din_list_email_campaigns", {
   title: "Listar campañas de email",
   description: "Lista las campañas de email marketing (newsletters, drip campaigns para leads inmobiliarios).",
   inputSchema: z.object({
@@ -1603,7 +1603,7 @@ server.registerTool("ghl_list_email_campaigns", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_list_email_builder_templates", {
+server.registerTool("din_list_email_builder_templates", {
   title: "Listar plantillas del email builder",
   description: "Lista las plantillas de email creadas con el builder. Incluye plantillas para propiedades, newsletters de mercado, etc.",
   inputSchema: z.object({
@@ -1618,7 +1618,7 @@ server.registerTool("ghl_list_email_builder_templates", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_email_builder_template", {
+server.registerTool("din_create_email_builder_template", {
   title: "Crear plantilla de email",
   description: "Crea una nueva plantilla de email HTML para campañas.",
   inputSchema: z.object({
@@ -1634,7 +1634,7 @@ server.registerTool("ghl_create_email_builder_template", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_update_email_builder_template", {
+server.registerTool("din_update_email_builder_template", {
   title: "Actualizar plantilla de email",
   description: "Edita el HTML o previewText de una plantilla de email.",
   inputSchema: z.object({
@@ -1651,7 +1651,7 @@ server.registerTool("ghl_update_email_builder_template", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_delete_email_builder_template", {
+server.registerTool("din_delete_email_builder_template", {
   title: "Eliminar plantilla de email",
   description: "⚠️ Elimina una plantilla de email del builder.",
   inputSchema: z.object({ templateId: z.string() }).strict(),
@@ -1667,7 +1667,7 @@ server.registerTool("ghl_delete_email_builder_template", {
 // PRODUCTOS / SERVICIOS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-server.registerTool("ghl_list_products", {
+server.registerTool("din_list_products", {
   title: "Listar productos/servicios",
   description: "Lista los productos o servicios configurados. En real estate: paquetes de asesoría, servicios de home staging, comisiones estandarizadas, etc.",
   inputSchema: z.object({
@@ -1683,7 +1683,7 @@ server.registerTool("ghl_list_products", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_get_product", {
+server.registerTool("din_get_product", {
   title: "Obtener producto por ID",
   description: "Detalle completo de un producto o servicio.",
   inputSchema: z.object({ productId: z.string() }).strict(),
@@ -1695,7 +1695,7 @@ server.registerTool("ghl_get_product", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_product", {
+server.registerTool("din_create_product", {
   title: "Crear producto/servicio",
   description: "Crea un nuevo producto o servicio. Útil para paquetes de asesoría inmobiliaria, servicios de valuación, etc.",
   inputSchema: z.object({
@@ -1713,7 +1713,7 @@ server.registerTool("ghl_create_product", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_update_product", {
+server.registerTool("din_update_product", {
   title: "Actualizar producto/servicio",
   description: "Edita los datos de un producto o servicio existente.",
   inputSchema: z.object({
@@ -1730,7 +1730,7 @@ server.registerTool("ghl_update_product", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_delete_product", {
+server.registerTool("din_delete_product", {
   title: "Eliminar producto/servicio",
   description: "⚠️ DESTRUCTIVO — Elimina permanentemente un producto o servicio.",
   inputSchema: z.object({ productId: z.string() }).strict(),
@@ -1742,7 +1742,7 @@ server.registerTool("ghl_delete_product", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_list_product_prices", {
+server.registerTool("din_list_product_prices", {
   title: "Ver precios de un producto",
   description: "Lista los precios configurados para un producto (puede tener múltiples: mensual, anual, pago único).",
   inputSchema: z.object({
@@ -1757,7 +1757,7 @@ server.registerTool("ghl_list_product_prices", {
   } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
 });
 
-server.registerTool("ghl_create_product_price", {
+server.registerTool("din_create_product_price", {
   title: "Agregar precio a producto",
   description: "Agrega un precio a un producto. Un producto puede tener múltiples precios (pago único, mensual, recurrente).",
   inputSchema: z.object({
