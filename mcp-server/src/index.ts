@@ -1275,6 +1275,511 @@ server.registerTool("ghl_delete_relation", {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CONVERSACIONES — GESTIÓN ADICIONAL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+server.registerTool("ghl_create_conversation", {
+  title: "Crear conversación",
+  description: "Crea una nueva conversación para un contacto. Útil para iniciar un canal de comunicación antes de enviar el primer mensaje.",
+  inputSchema: z.object({ contactId: z.string() }).strict(),
+  annotations: WRITE_SAFE,
+}, async ({ contactId }) => {
+  try {
+    const data = await apiPost("/conversations/", { locationId: loc(), contactId });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_update_conversation", {
+  title: "Actualizar conversación",
+  description: "Marca una conversación como destacada o cambia su contador de no leídos.",
+  inputSchema: z.object({
+    conversationId: z.string(),
+    starred: z.boolean().optional().describe("Marcar/desmarcar como destacada"),
+    unreadCount: z.number().int().optional().describe("Contador de mensajes no leídos (0 para marcar como leída)"),
+  }).strict(),
+  annotations: WRITE_IDEMPOTENT,
+}, async ({ conversationId, ...fields }) => {
+  try {
+    const data = await apiPut(`/conversations/${conversationId}`, fields);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REDES SOCIALES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+server.registerTool("ghl_get_social_accounts", {
+  title: "Ver cuentas de redes sociales conectadas",
+  description: "Lista las cuentas de Facebook, Instagram, LinkedIn u otras redes conectadas a la subcuenta.",
+  inputSchema: z.object({}).strict(),
+  annotations: READ_ONLY,
+}, async () => {
+  try {
+    const data = await apiGet(`/locations/${loc()}/socialMedia/accounts`);
+    return { content: [{ type: "text", text: truncate(JSON.stringify(data, null, 2)) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_list_social_posts", {
+  title: "Listar publicaciones en redes sociales",
+  description: "Lista publicaciones programadas o publicadas en redes sociales. Filtrar por fecha o tipo.",
+  inputSchema: z.object({
+    skip: z.number().int().default(0),
+    limit: z.number().int().default(20),
+    fromDate: z.string().optional().describe("Fecha inicio ISO 8601"),
+    toDate: z.string().optional().describe("Fecha fin ISO 8601"),
+    type: z.string().optional().describe("Tipo de publicación"),
+  }).strict(),
+  annotations: READ_ONLY,
+}, async (params) => {
+  try {
+    const data = await apiGet(`/locations/${loc()}/socialMedia/posts`, params);
+    return { content: [{ type: "text", text: truncate(JSON.stringify(data, null, 2)) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_get_social_post", {
+  title: "Obtener publicación social por ID",
+  description: "Detalle de una publicación de redes sociales específica.",
+  inputSchema: z.object({ postId: z.string() }).strict(),
+  annotations: READ_ONLY,
+}, async ({ postId }) => {
+  try {
+    const data = await apiGet(`/locations/${loc()}/socialMedia/posts/${postId}`);
+    return { content: [{ type: "text", text: truncate(JSON.stringify(data, null, 2)) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_create_social_post", {
+  title: "Crear publicación en redes sociales",
+  description: "⚠️ ACCIÓN REAL — Crea o programa una publicación en las redes conectadas. Ideal para publicar listados de propiedades en FB/IG.",
+  inputSchema: z.object({
+    accountIds: z.array(z.string()).min(1).describe("IDs de las cuentas donde publicar (ver ghl_get_social_accounts)"),
+    summary: z.string().min(1).describe("Texto de la publicación"),
+    media: z.array(z.object({
+      url: z.string().describe("URL de la imagen o video"),
+      type: z.enum(["image", "video"]).optional(),
+    })).optional().describe("Imágenes o videos adjuntos"),
+    status: z.enum(["DRAFT", "SCHEDULED", "PUBLISHED"]).default("DRAFT"),
+    scheduleDate: z.string().optional().describe("Fecha/hora programada ISO 8601 (solo si status=SCHEDULED)"),
+    tags: z.array(z.string()).optional(),
+  }).strict(),
+  annotations: WRITE_SAFE,
+}, async (params) => {
+  try {
+    const data = await apiPost(`/locations/${loc()}/socialMedia/posts`, params);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_update_social_post", {
+  title: "Actualizar publicación social",
+  description: "Edita el texto, fecha programada o estado de una publicación de redes sociales.",
+  inputSchema: z.object({
+    postId: z.string(),
+    summary: z.string().optional(),
+    status: z.enum(["DRAFT", "SCHEDULED"]).optional(),
+    scheduleDate: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+  }).strict(),
+  annotations: WRITE_IDEMPOTENT,
+}, async ({ postId, ...fields }) => {
+  try {
+    const data = await apiPut(`/locations/${loc()}/socialMedia/posts/${postId}`, fields);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_delete_social_post", {
+  title: "Eliminar publicación social",
+  description: "⚠️ Elimina una publicación de redes sociales.",
+  inputSchema: z.object({ postId: z.string() }).strict(),
+  annotations: DESTRUCTIVE,
+}, async ({ postId }) => {
+  try {
+    const data = await apiDelete(`/locations/${loc()}/socialMedia/posts/${postId}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BLOG
+// ═══════════════════════════════════════════════════════════════════════════════
+
+server.registerTool("ghl_list_blogs", {
+  title: "Listar blogs",
+  description: "Lista los blogs configurados en la subcuenta. Útil para publicar artículos de propiedades, análisis de mercado o contenido inmobiliario.",
+  inputSchema: z.object({
+    limit: z.number().int().default(20),
+    skip: z.number().int().default(0),
+    searchTerm: z.string().optional(),
+  }).strict(),
+  annotations: READ_ONLY,
+}, async (params) => {
+  try {
+    const data = await apiGet(`/locations/${loc()}/blogs`, params);
+    return { content: [{ type: "text", text: truncate(JSON.stringify(data, null, 2)) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_list_blog_posts", {
+  title: "Listar artículos de un blog",
+  description: "Lista los artículos publicados o en borrador de un blog específico.",
+  inputSchema: z.object({
+    blogId: z.string(),
+    limit: z.number().int().default(20),
+    offset: z.number().int().default(0),
+    searchTerm: z.string().optional(),
+    status: z.enum(["DRAFT", "PUBLISHED"]).optional(),
+  }).strict(),
+  annotations: READ_ONLY,
+}, async ({ blogId, ...params }) => {
+  try {
+    const data = await apiGet(`/locations/${loc()}/blogs/${blogId}/posts`, params);
+    return { content: [{ type: "text", text: truncate(JSON.stringify(data, null, 2)) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_create_blog_post", {
+  title: "Crear artículo de blog",
+  description: "⚠️ ACCIÓN REAL — Crea un artículo en el blog. Útil para publicar listados de propiedades, reportes de mercado o guías para compradores.",
+  inputSchema: z.object({
+    blogId: z.string().describe("ID del blog (ver ghl_list_blogs)"),
+    title: z.string().min(1),
+    content: z.string().min(1).describe("Contenido HTML del artículo"),
+    description: z.string().optional().describe("Resumen o meta descripción"),
+    imageUrl: z.string().optional().describe("URL de la imagen destacada"),
+    urlSlug: z.string().optional().describe("Slug para la URL del artículo"),
+    author: z.string().optional(),
+    status: z.enum(["DRAFT", "PUBLISHED"]).default("DRAFT"),
+    categories: z.array(z.string()).optional(),
+  }).strict(),
+  annotations: WRITE_SAFE,
+}, async ({ blogId, ...params }) => {
+  try {
+    const data = await apiPost(`/locations/${loc()}/blogs/${blogId}/posts`, params);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_update_blog_post", {
+  title: "Actualizar artículo de blog",
+  description: "Edita el contenido, título o estado de un artículo de blog.",
+  inputSchema: z.object({
+    blogId: z.string(),
+    postId: z.string(),
+    title: z.string().optional(),
+    content: z.string().optional(),
+    description: z.string().optional(),
+    status: z.enum(["DRAFT", "PUBLISHED"]).optional(),
+    imageUrl: z.string().optional(),
+  }).strict(),
+  annotations: WRITE_IDEMPOTENT,
+}, async ({ blogId, postId, ...fields }) => {
+  try {
+    const data = await apiPut(`/locations/${loc()}/blogs/${blogId}/posts/${postId}`, fields);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_get_blog_authors", {
+  title: "Ver autores del blog",
+  description: "Lista los autores disponibles para asignar a artículos del blog.",
+  inputSchema: z.object({ blogId: z.string() }).strict(),
+  annotations: READ_ONLY,
+}, async ({ blogId }) => {
+  try {
+    const data = await apiGet(`/locations/${loc()}/blogs/${blogId}/authors`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENCUESTAS / SURVEYS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+server.registerTool("ghl_list_surveys", {
+  title: "Listar encuestas",
+  description: "Lista las encuestas configuradas. Útil para calificación de leads post-visita o feedback de clientes.",
+  inputSchema: z.object({
+    limit: z.number().int().default(20),
+    skip: z.number().int().default(0),
+  }).strict(),
+  annotations: READ_ONLY,
+}, async (params) => {
+  try {
+    const data = await apiGet(`/locations/${loc()}/surveys`, params);
+    return { content: [{ type: "text", text: truncate(JSON.stringify(data, null, 2)) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_get_survey_submissions", {
+  title: "Ver respuestas de encuesta",
+  description: "Lista las respuestas enviadas a una encuesta específica con filtros de fecha.",
+  inputSchema: z.object({
+    surveyId: z.string().optional().describe("ID de la encuesta (ver ghl_list_surveys)"),
+    page: z.number().int().default(1),
+    limit: z.number().int().default(20),
+    q: z.string().optional().describe("Búsqueda por nombre o email"),
+    startAt: z.string().optional().describe("Fecha inicio ISO 8601"),
+    endAt: z.string().optional().describe("Fecha fin ISO 8601"),
+  }).strict(),
+  annotations: READ_ONLY,
+}, async (params) => {
+  try {
+    const data = await apiGet(`/locations/${loc()}/surveys/submissions`, params);
+    return { content: [{ type: "text", text: truncate(JSON.stringify(data, null, 2)) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BIBLIOTECA DE MEDIOS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+server.registerTool("ghl_list_media", {
+  title: "Listar archivos de medios",
+  description: "Lista imágenes, videos y documentos en la biblioteca de medios. Útil para gestionar fotos de propiedades, planos y materiales de marketing.",
+  inputSchema: z.object({
+    limit: z.number().int().default(20),
+    offset: z.number().int().default(0),
+    type: z.enum(["image", "video", "document", "audio"]).optional(),
+    query: z.string().optional().describe("Buscar por nombre de archivo"),
+    sortBy: z.enum(["createdAt", "name", "size"]).optional(),
+  }).strict(),
+  annotations: READ_ONLY,
+}, async (params) => {
+  try {
+    const data = await apiGet(`/location/${loc()}/media`, params);
+    return { content: [{ type: "text", text: truncate(JSON.stringify(data, null, 2)) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_upload_media", {
+  title: "Subir archivo a biblioteca de medios",
+  description: "Sube un archivo a la biblioteca de medios usando su URL pública. Ideal para agregar fotos de propiedades desde URLs externas.",
+  inputSchema: z.object({
+    fileUrl: z.string().describe("URL pública del archivo a subir"),
+    name: z.string().optional().describe("Nombre para el archivo en la biblioteca"),
+  }).strict(),
+  annotations: WRITE_SAFE,
+}, async ({ fileUrl, name }) => {
+  try {
+    const data = await apiPost(`/location/${loc()}/media/upload`, { fileUrl, hosted: true, name });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_delete_media", {
+  title: "Eliminar archivo de medios",
+  description: "⚠️ Elimina permanentemente un archivo de la biblioteca de medios.",
+  inputSchema: z.object({ mediaId: z.string() }).strict(),
+  annotations: DESTRUCTIVE,
+}, async ({ mediaId }) => {
+  try {
+    const data = await apiDelete(`/location/${loc()}/media/${mediaId}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EMAIL MARKETING / CAMPAÑAS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+server.registerTool("ghl_list_email_campaigns", {
+  title: "Listar campañas de email",
+  description: "Lista las campañas de email marketing (newsletters, drip campaigns para leads inmobiliarios).",
+  inputSchema: z.object({
+    status: z.string().optional(),
+    limit: z.number().int().default(20),
+    offset: z.number().int().default(0),
+  }).strict(),
+  annotations: READ_ONLY,
+}, async (params) => {
+  try {
+    const data = await apiGet(`/locations/${loc()}/email/campaigns`, params);
+    return { content: [{ type: "text", text: truncate(JSON.stringify(data, null, 2)) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_list_email_builder_templates", {
+  title: "Listar plantillas del email builder",
+  description: "Lista las plantillas de email creadas con el builder. Incluye plantillas para propiedades, newsletters de mercado, etc.",
+  inputSchema: z.object({
+    limit: z.number().int().default(20),
+    offset: z.number().int().default(0),
+  }).strict(),
+  annotations: READ_ONLY,
+}, async (params) => {
+  try {
+    const data = await apiGet(`/locations/${loc()}/email/templates`, params);
+    return { content: [{ type: "text", text: truncate(JSON.stringify(data, null, 2)) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_create_email_builder_template", {
+  title: "Crear plantilla de email",
+  description: "Crea una nueva plantilla de email HTML para campañas.",
+  inputSchema: z.object({
+    title: z.string().min(1).describe("Nombre de la plantilla"),
+    html: z.string().min(1).describe("Contenido HTML de la plantilla"),
+    isPlainText: z.boolean().default(false),
+  }).strict(),
+  annotations: WRITE_SAFE,
+}, async (params) => {
+  try {
+    const data = await apiPost(`/locations/${loc()}/email/templates`, params);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_update_email_builder_template", {
+  title: "Actualizar plantilla de email",
+  description: "Edita el HTML o previewText de una plantilla de email.",
+  inputSchema: z.object({
+    templateId: z.string(),
+    html: z.string().optional(),
+    previewText: z.string().optional().describe("Texto de vista previa que aparece en el inbox"),
+    title: z.string().optional(),
+  }).strict(),
+  annotations: WRITE_IDEMPOTENT,
+}, async ({ templateId, ...fields }) => {
+  try {
+    const data = await apiPut(`/locations/${loc()}/email/templates/${templateId}`, fields);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_delete_email_builder_template", {
+  title: "Eliminar plantilla de email",
+  description: "⚠️ Elimina una plantilla de email del builder.",
+  inputSchema: z.object({ templateId: z.string() }).strict(),
+  annotations: DESTRUCTIVE,
+}, async ({ templateId }) => {
+  try {
+    const data = await apiDelete(`/locations/${loc()}/email/templates/${templateId}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PRODUCTOS / SERVICIOS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+server.registerTool("ghl_list_products", {
+  title: "Listar productos/servicios",
+  description: "Lista los productos o servicios configurados. En real estate: paquetes de asesoría, servicios de home staging, comisiones estandarizadas, etc.",
+  inputSchema: z.object({
+    limit: z.number().int().default(20),
+    offset: z.number().int().default(0),
+    search: z.string().optional(),
+  }).strict(),
+  annotations: READ_ONLY,
+}, async (params) => {
+  try {
+    const data = await apiGet(`/locations/${loc()}/products`, params);
+    return { content: [{ type: "text", text: truncate(JSON.stringify(data, null, 2)) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_get_product", {
+  title: "Obtener producto por ID",
+  description: "Detalle completo de un producto o servicio.",
+  inputSchema: z.object({ productId: z.string() }).strict(),
+  annotations: READ_ONLY,
+}, async ({ productId }) => {
+  try {
+    const data = await apiGet(`/locations/${loc()}/products/${productId}`);
+    return { content: [{ type: "text", text: truncate(JSON.stringify(data, null, 2)) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_create_product", {
+  title: "Crear producto/servicio",
+  description: "Crea un nuevo producto o servicio. Útil para paquetes de asesoría inmobiliaria, servicios de valuación, etc.",
+  inputSchema: z.object({
+    name: z.string().min(1),
+    productType: z.enum(["DIGITAL", "PHYSICAL", "SERVICE"]).default("SERVICE"),
+    description: z.string().optional(),
+    imageUrl: z.string().optional(),
+    slug: z.string().optional().describe("Slug para URL del producto"),
+  }).strict(),
+  annotations: WRITE_SAFE,
+}, async (params) => {
+  try {
+    const data = await apiPost(`/locations/${loc()}/products`, params);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_update_product", {
+  title: "Actualizar producto/servicio",
+  description: "Edita los datos de un producto o servicio existente.",
+  inputSchema: z.object({
+    productId: z.string(),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    imageUrl: z.string().optional(),
+  }).strict(),
+  annotations: WRITE_IDEMPOTENT,
+}, async ({ productId, ...fields }) => {
+  try {
+    const data = await apiPut(`/locations/${loc()}/products/${productId}`, fields);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_delete_product", {
+  title: "Eliminar producto/servicio",
+  description: "⚠️ DESTRUCTIVO — Elimina permanentemente un producto o servicio.",
+  inputSchema: z.object({ productId: z.string() }).strict(),
+  annotations: DESTRUCTIVE,
+}, async ({ productId }) => {
+  try {
+    const data = await apiDelete(`/locations/${loc()}/products/${productId}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_list_product_prices", {
+  title: "Ver precios de un producto",
+  description: "Lista los precios configurados para un producto (puede tener múltiples: mensual, anual, pago único).",
+  inputSchema: z.object({
+    productId: z.string(),
+    limit: z.number().int().default(20),
+  }).strict(),
+  annotations: READ_ONLY,
+}, async ({ productId, limit }) => {
+  try {
+    const data = await apiGet(`/locations/${loc()}/products/${productId}/prices`, { limit });
+    return { content: [{ type: "text", text: truncate(JSON.stringify(data, null, 2)) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+server.registerTool("ghl_create_product_price", {
+  title: "Agregar precio a producto",
+  description: "Agrega un precio a un producto. Un producto puede tener múltiples precios (pago único, mensual, recurrente).",
+  inputSchema: z.object({
+    productId: z.string(),
+    name: z.string().min(1).describe("Nombre del precio (ej: 'Pago único', 'Mensual')"),
+    type: z.enum(["one_time", "recurring"]).default("one_time"),
+    currency: z.string().default("MXN"),
+    amount: z.number().describe("Monto en centavos o unidad mínima de la moneda"),
+    recurring: z.object({
+      interval: z.enum(["day", "week", "month", "year"]),
+      intervalCount: z.number().int().default(1),
+    }).optional(),
+  }).strict(),
+  annotations: WRITE_SAFE,
+}, async ({ productId, ...params }) => {
+  try {
+    const data = await apiPost(`/locations/${loc()}/products/${productId}/prices`, params);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  } catch (e) { return { content: [{ type: "text", text: handleError(e) }] }; }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // INICIO
 // ═══════════════════════════════════════════════════════════════════════════════
 
