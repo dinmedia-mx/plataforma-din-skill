@@ -57,22 +57,59 @@ Si es diferente, avísale al usuario que hay una versión más nueva disponible.
 
 ## 2. Setup — Conectar Claude a la plataforma
 
-### Instalación del servidor de conexión
+### Paso 1 — Instalar y compilar el servidor
 
-**Instalar dependencias y compilar:**
 ```bash
 git clone https://github.com/dinmedia-mx/plataforma-din-skill
 cd plataforma-din-skill/mcp-server
-npm install && npm run build
+npm install
+npm run build
 ```
 
-**Agregar a `~/.claude/settings.json`:**
+### Paso 2 — Obtener la ruta de Node
+
+```bash
+which node
+```
+Guarda lo que salió (ejemplo: `/usr/local/bin/node` o `/opt/homebrew/bin/node`). La necesitas en el siguiente paso.
+
+### Paso 3 — Agregar la configuración según tu app de Claude
+
+⚠️ **El archivo de configuración cambia según qué app uses:**
+
+---
+
+**Claude Desktop (app de escritorio) — la más común:**
+
+Archivo: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+Agrega la sección `mcpServers` dentro del JSON existente (no reemplaces todo el archivo):
+```json
+"mcpServers": {
+  "plataforma-din": {
+    "command": "/usr/local/bin/node",
+    "args": ["/Users/tu-usuario/plataforma-din-skill/mcp-server/dist/index.js"],
+    "env": {
+      "DIN_API_TOKEN": "{TOKEN_DEL_USUARIO}",
+      "DIN_LOCATION_ID": "{LOCATION_ID_DEL_USUARIO}"
+    }
+  }
+}
+```
+Reemplaza `/usr/local/bin/node` con lo que dio `which node`, y `tu-usuario` con tu nombre de usuario real.
+
+---
+
+**Claude Code (terminal / CLI):**
+
+Archivo: `~/.claude/settings.json`
+
 ```json
 {
   "mcpServers": {
     "plataforma-din": {
-      "command": "/opt/homebrew/bin/node",
-      "args": ["/ruta/al/plataforma-din-skill/mcp-server/dist/index.js"],
+      "command": "/usr/local/bin/node",
+      "args": ["/Users/tu-usuario/plataforma-din-skill/mcp-server/dist/index.js"],
       "env": {
         "DIN_API_TOKEN": "{TOKEN_DEL_USUARIO}",
         "DIN_LOCATION_ID": "{LOCATION_ID_DEL_USUARIO}"
@@ -82,7 +119,18 @@ npm install && npm run build
 }
 ```
 
-Reiniciar Claude después de agregar la configuración.
+---
+
+### Paso 4 — Reiniciar Claude
+
+Cierra Claude completamente (**Cmd+Q** en Mac) y vuelve a abrirlo. El MCP carga solo al iniciar.
+
+### Paso 5 — Verificar
+
+Escríbele a Claude: *"¿Qué tools tienes disponibles?"*
+Debe aparecer **Plataforma DIN** en la lista de conectores activos.
+
+---
 
 ### Cómo obtener el token y Location ID
 
@@ -98,8 +146,6 @@ Reiniciar Claude después de agregar la configuración.
 Está en la URL cuando estás dentro de la subcuenta:
 `.../location/XXXXXXXXXXXXXXXX/...`
 Los caracteres entre `/location/` y el siguiente `/` son tu Location ID.
-
-**Reinicia Claude** después de configurar el MCP para que la conexión quede activa.
 
 ---
 
